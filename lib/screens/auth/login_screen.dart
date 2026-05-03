@@ -1,143 +1,211 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
-import '../../core/constants/colors.dart';
+import 'package:provider/provider.dart';
+import '../../core/constants/app_colors.dart';
 import '../../providers/auth_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
+
   @override
-  State<LoginScreen> createState() => _State();
+  State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _State extends State<LoginScreen> {
-  final _email = TextEditingController();
-  final _pass  = TextEditingController();
-  final _form  = GlobalKey<FormState>();
-  bool _hide = true;
-  String? _err;
+class _LoginScreenState extends State<LoginScreen> {
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  String? _errorMessage;
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
-    _email.dispose(); _pass.dispose(); super.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 
   Future<void> _login() async {
-    if (!_form.currentState!.validate()) return;
-    setState(() => _err = null);
-    final err = await context.read<AuthProvider>()
-      .login(_email.text, _pass.text);
-    if (err != null && mounted) setState(() => _err = err);
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _errorMessage = null);
+
+    final auth = context.read<AuthProvider>();
+    final error = await auth.login(
+      _emailController.text,
+      _passwordController.text,
+    );
+
+    if (error != null && mounted) {
+      setState(() => _errorMessage = error);
+    }
+    // GoRouter redirect handles navigation on success
   }
 
   @override
-  Widget build(BuildContext ctx) {
-    final auth = ctx.watch<AuthProvider>();
+  Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Form(key: _form, child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 56),
-            Center(child: Container(
-              width: 72, height: 72,
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(18)),
-              child: const Icon(Icons.school_rounded,
-                color: Colors.white, size: 36))),
-            const SizedBox(height: 32),
-            const Text('Welcome Back 👋',
-              style: TextStyle(fontSize: 24,
-                fontWeight: FontWeight.bold)),
-            const SizedBox(height: 6),
-            const Text('Sign in to Mahindra University',
-              style: TextStyle(color: AppColors.textSecondary)),
-            const SizedBox(height: 36),
-            TextFormField(controller: _email,
-              keyboardType: TextInputType.emailAddress,
-              decoration: _dec('Email', 'you@mu.edu.in'),
-              validator: (v) => (v?.isEmpty ?? true)
-                ? 'Enter email' : null),
-            const SizedBox(height: 14),
-            TextFormField(controller: _pass,
-              obscureText: _hide,
-              decoration: _dec('Password', '••••••••').copyWith(
-                suffixIcon: IconButton(
-                  icon: Icon(_hide
-                    ? Icons.visibility_off
-                    : Icons.visibility),
-                  onPressed: () =>
-                    setState(() => _hide = !_hide))),
-              validator: (v) => (v?.isEmpty ?? true)
-                ? 'Enter password' : null),
-            if (_err != null) ...[
-              const SizedBox(height: 14),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.error.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: AppColors.error.withOpacity(0.3))),
-                child: Row(children: [
-                  const Icon(Icons.error_outline,
-                    color: AppColors.error, size: 16),
-                  const SizedBox(width: 8),
-                  Text(_err!, style: const TextStyle(
-                    color: AppColors.error)),
-                ])),
-            ],
-            const SizedBox(height: 28),
-            SizedBox(width: double.infinity, height: 52,
-              child: ElevatedButton(
-                onPressed: auth.isLoading ? null : _login,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14))),
-                child: auth.isLoading
-                  ? const SizedBox(width: 20, height: 20,
-                      child: CircularProgressIndicator(
-                        color: Colors.white, strokeWidth: 2))
-                  : const Text('Sign In', style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold)))),
-            const SizedBox(height: 20),
-            Center(child: GestureDetector(
-              onTap: () => ctx.push('/register'),
-              child: RichText(text: const TextSpan(
-                style: TextStyle(
-                  color: AppColors.textSecondary),
-                children: [
-                  TextSpan(text: 'No account? '),
-                  TextSpan(text: 'Register',
-                    style: TextStyle(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.bold)),
-                ])))),
-          ],
-        )),
-      )),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 60),
+                // Logo area
+                Container(
+                  height: 80,
+                  width: 80,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(Icons.school, color: Colors.white, size: 44),
+                ),
+                const Text(
+                  'Mahindra University',
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const Text(
+                  'Sign in to continue',
+                  style: TextStyle(fontSize: 15, color: AppColors.textSecondary),
+                ),
+                const SizedBox(height: 40),
+
+                // Error container
+                if (_errorMessage != null) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.error.withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.error_outline, color: AppColors.error, size: 18),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _errorMessage!,
+                            style: const TextStyle(color: AppColors.error, fontSize: 14),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
+                // Email field
+                TextFormField(
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                    prefixIcon: Icon(Icons.email_outlined),
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (v) =>
+                      v == null || v.isEmpty ? 'Enter your email' : null,
+                ),
+                const SizedBox(height: 16),
+
+                // Password field
+                TextFormField(
+                  controller: _passwordController,
+                  obscureText: _obscurePassword,
+                  decoration: InputDecoration(
+                    labelText: 'Password',
+                    prefixIcon: const Icon(Icons.lock_outlined),
+                    border: const OutlineInputBorder(),
+                    suffixIcon: IconButton(
+                      icon: Icon(_obscurePassword
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined),
+                      onPressed: () =>
+                          setState(() => _obscurePassword = !_obscurePassword),
+                    ),
+                  ),
+                  validator: (v) =>
+                      v == null || v.isEmpty ? 'Enter your password' : null,
+                ),
+                const SizedBox(height: 24),
+
+                // Sign In button
+                FilledButton(
+                  onPressed: auth.isLoading ? null : _login,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: auth.isLoading
+                      ? const SizedBox(
+                          height: 20, width: 20,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text('Sign In',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                ),
+                const SizedBox(height: 16),
+
+                // Register link
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text("Don't have an account? ",
+                        style: TextStyle(color: AppColors.textSecondary)),
+                    GestureDetector(
+                      onTap: () => context.go('/register'),
+                      child: const Text('Register',
+                          style: TextStyle(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w600)),
+                    ),
+                  ],
+                ),
+                      // After the Register row, add:
+                  const SizedBox(height: 24),
+                  const Divider(color: AppColors.border),
+                  const SizedBox(height: 16),
+                  GestureDetector(
+                    onTap: () async {
+                    final uri = Uri.parse('https://www.mahindrauniversity.edu.in');
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  },
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.language, size: 16, color: AppColors.primary),
+                      SizedBox(width: 6),
+                      Text(
+                        'www.mahindrauniversity.edu.in',
+                        style: TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 13,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
-
-  InputDecoration _dec(String l, String h) =>
-    InputDecoration(
-      labelText: l, hintText: h,
-      filled: true, fillColor: AppColors.surface,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.border)),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.border)),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(
-          color: AppColors.primary, width: 2)),
-    );
 }

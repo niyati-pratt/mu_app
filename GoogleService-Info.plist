@@ -9,7 +9,7 @@
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.niyati.muapp2026</string>
+	<string>com.niyati.muapp</string>
 	<key>PROJECT_ID</key>
 	<string>mu-app-aa184</string>
 	<key>STORAGE_BUCKET</key>
@@ -25,6 +25,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:783513830794:ios:9fc1f02b3caf58b34fb473</string>
+	<string>1:783513830794:ios:684d4ca192015ff44fb473</string>
 </dict>
 </plist>

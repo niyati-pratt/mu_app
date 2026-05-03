@@ -1,149 +1,213 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
-import '../../core/constants/colors.dart';
+import 'package:provider/provider.dart';
+import '../../core/constants/app_colors.dart';
 import '../../providers/auth_provider.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
+
   @override
-  State<RegisterScreen> createState() => _State();
+  State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _State extends State<RegisterScreen> {
-  final _name  = TextEditingController();
-  final _email = TextEditingController();
-  final _pass  = TextEditingController();
-  final _form  = GlobalKey<FormState>();
-  String _role = 'student';
-  String? _err;
+class _RegisterScreenState extends State<RegisterScreen> {
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  String _selectedRole = 'student';
+  String? _selectedDepartment;
+  String? _classController;
+  String? _errorMessage;
+  bool _obscurePassword = true;
+
+  final List<String> _roles = ['student', 'faculty', 'parent'];
+  final List<String> _departments = ['ECSoE', 'Management', 'Law', 'Design'];
 
   @override
   void dispose() {
-    _name.dispose(); _email.dispose();
-    _pass.dispose(); super.dispose();
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 
   Future<void> _register() async {
-    if (!_form.currentState!.validate()) return;
-    setState(() => _err = null);
-    final err = await context.read<AuthProvider>().register(
-      name: _name.text, email: _email.text,
-      password: _pass.text, role: _role);
-    if (err != null && mounted) {
-      setState(() => _err = err);
-    } else if (mounted) {
-      context.go('/home');
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _errorMessage = null);
+
+    final auth = context.read<AuthProvider>();
+    final error = await auth.register(
+      name: _nameController.text,
+      email: _emailController.text,
+      password: _passwordController.text,
+      role: _selectedRole,
+      department: _selectedDepartment,
+      studentClass: _classController,
+    );
+
+    if (error != null && mounted) {
+      setState(() => _errorMessage = error);
     }
   }
 
   @override
-  Widget build(BuildContext ctx) {
-    final auth = ctx.watch<AuthProvider>();
+  Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Form(key: _form, child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 40),
-            const Text('Create Account',
-              style: TextStyle(fontSize: 24,
-                fontWeight: FontWeight.bold)),
-            const SizedBox(height: 6),
-            const Text('Join Mahindra University',
-              style: TextStyle(
-                color: AppColors.textSecondary)),
-            const SizedBox(height: 32),
-            TextFormField(controller: _name,
-              decoration: _dec('Full Name', 'Your name'),
-              validator: (v) => (v?.isEmpty ?? true)
-                ? 'Enter name' : null),
-            const SizedBox(height: 14),
-            TextFormField(controller: _email,
-              keyboardType: TextInputType.emailAddress,
-              decoration: _dec('Email', 'you@mu.edu.in'),
-              validator: (v) => (v?.isEmpty ?? true)
-                ? 'Enter email' : null),
-            const SizedBox(height: 14),
-            TextFormField(controller: _pass,
-              obscureText: true,
-              decoration: _dec('Password', '6+ characters'),
-              validator: (v) => (v?.length ?? 0) < 6
-                ? 'Min 6 characters' : null),
-            const SizedBox(height: 14),
-            DropdownButtonFormField<String>(
-              value: _role,
-              decoration: _dec('Role', ''),
-              items: ['student', 'faculty', 'parent']
-                .map((r) => DropdownMenuItem(
-                  value: r,
-                  child: Text(r[0].toUpperCase() +
-                    r.substring(1))))
-                .toList(),
-              onChanged: (v) =>
-                setState(() => _role = v!)),
-            if (_err != null) ...[
-              const SizedBox(height: 14),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.error.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: AppColors.error.withOpacity(0.3))),
-                child: Text(_err!, style: const TextStyle(
-                  color: AppColors.error))),
-            ],
-            const SizedBox(height: 28),
-            SizedBox(width: double.infinity, height: 52,
-              child: ElevatedButton(
-                onPressed: auth.isLoading ? null : _register,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14))),
-                child: auth.isLoading
-                  ? const SizedBox(width: 20, height: 20,
-                      child: CircularProgressIndicator(
-                        color: Colors.white, strokeWidth: 2))
-                  : const Text('Register', style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold)))),
-            const SizedBox(height: 20),
-            Center(child: GestureDetector(
-              onTap: () => ctx.pop(),
-              child: RichText(text: const TextSpan(
-                style: TextStyle(
-                  color: AppColors.textSecondary),
-                children: [
-                  TextSpan(text: 'Already have account? '),
-                  TextSpan(text: 'Login',
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.go('/login'),
+        ),
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text('Create Account',
                     style: TextStyle(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.bold)),
-                ])))),
-          ],
-        )),
-      )),
+                        fontSize: 26,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary)),
+                const Text('Join Mahindra University App',
+                    style: TextStyle(fontSize: 15, color: AppColors.textSecondary)),
+                const SizedBox(height: 32),
+
+                if (_errorMessage != null) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.error.withOpacity(0.3)),
+                    ),
+                    child: Text(_errorMessage!,
+                        style: const TextStyle(color: AppColors.error, fontSize: 14)),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
+                TextFormField(
+                  controller: _nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Full Name',
+                    prefixIcon: Icon(Icons.person_outline),
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (v) => v == null || v.isEmpty ? 'Enter your name' : null,
+                ),
+                const SizedBox(height: 16),
+
+                TextFormField(
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                    prefixIcon: Icon(Icons.email_outlined),
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (v) => v == null || v.isEmpty ? 'Enter email' : null,
+                ),
+                const SizedBox(height: 16),
+
+                TextFormField(
+                  controller: _passwordController,
+                  obscureText: _obscurePassword,
+                  decoration: InputDecoration(
+                    labelText: 'Password',
+                    prefixIcon: const Icon(Icons.lock_outlined),
+                    border: const OutlineInputBorder(),
+                    suffixIcon: IconButton(
+                      icon: Icon(_obscurePassword
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined),
+                      onPressed: () =>
+                          setState(() => _obscurePassword = !_obscurePassword),
+                    ),
+                  ),
+                  validator: (v) {
+                    if (v == null || v.isEmpty) return 'Enter password';
+                    if (v.length < 6) return 'Min 6 characters';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                // Role selector
+                DropdownButtonFormField<String>(
+                  value: _selectedRole,
+                  decoration: const InputDecoration(
+                    labelText: 'Role',
+                    prefixIcon: Icon(Icons.badge_outlined),
+                    border: OutlineInputBorder(),
+                  ),
+                  items: _roles.map((r) => DropdownMenuItem(
+                    value: r,
+                    child: Text(r[0].toUpperCase() + r.substring(1)),
+                  )).toList(),
+                  onChanged: (v) => setState(() => _selectedRole = v ?? 'student'),
+                ),
+                const SizedBox(height: 16),
+
+                // Department (optional)
+                DropdownButtonFormField<String>(
+                  value: _selectedDepartment,
+                  decoration: const InputDecoration(
+                    labelText: 'Department (optional)',
+                    prefixIcon: Icon(Icons.business_outlined),
+                    border: OutlineInputBorder(),
+                  ),
+                  items: [
+                    const DropdownMenuItem(value: null, child: Text('None')),
+                    ..._departments.map((d) => DropdownMenuItem(value: d, child: Text(d))),
+                  ],
+                  onChanged: (v) => setState(() => _selectedDepartment = v),
+                ),
+
+                if (_selectedRole == 'student') ...[
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    decoration: const InputDecoration(
+                      labelText: 'Class code (e.g. CS-3A)',
+                      prefixIcon: Icon(Icons.class_outlined),
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (v) => _classController = v.trim(),
+                  ),
+                ],
+
+                const SizedBox(height: 28),
+
+                FilledButton(
+                  onPressed: auth.isLoading ? null : _register,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: auth.isLoading
+                      ? const SizedBox(
+                          height: 20, width: 20,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
+                      : const Text('Create Account',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
-
-  InputDecoration _dec(String l, String h) =>
-    InputDecoration(
-      labelText: l, hintText: h,
-      filled: true, fillColor: AppColors.surface,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.border)),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.border)),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(
-          color: AppColors.primary, width: 2)),
-    );
 }

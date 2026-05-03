@@ -1,213 +1,246 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
-import '../../core/constants/colors.dart';
+import 'package:provider/provider.dart';
+import '../../core/constants/app_colors.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/notices_provider.dart';
+import '../../models/notice_model.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
   @override
-  State<HomeScreen> createState() => _State();
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _State extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final u = context.read<AuthProvider>().currentUser;
-      context.read<NoticesProvider>()
-        .fetch(studentClass: u?.studentClass);
+      final auth = context.read<AuthProvider>();
+      context.read<NoticesProvider>().fetch(
+        studentClass: auth.currentUser?.studentClass,
+      );
     });
   }
 
-  String _greet() {
-    final h = DateTime.now().hour;
-    if (h < 12) return 'Good Morning';
-    if (h < 17) return 'Good Afternoon';
-    return 'Good Evening';
-  }
-
   @override
-  Widget build(BuildContext ctx) {
-    final user    = ctx.watch<AuthProvider>().currentUser;
-    final notices = ctx.watch<NoticesProvider>();
-    final name    = user?.name.split(' ').first ?? 'User';
+  Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    final notices = context.watch<NoticesProvider>();
+    final user = auth.currentUser;
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: CustomScrollView(slivers: [
-        SliverAppBar(
-          expandedHeight: 240,
-          pinned: true,
-          backgroundColor: AppColors.primary,
-          flexibleSpace: FlexibleSpaceBar(
-            background: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [AppColors.primary, AppColors.primaryDark],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight)),
-              padding: const EdgeInsets.fromLTRB(24, 90, 24, 32),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.end,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('${_greet()}, $name 👋',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.3)),
-                  const SizedBox(height: 6),
-                  Text(
-                    user?.department ??
-                      'Global Thinkers. Engaged Leaders.',
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.8),
-                      fontStyle: FontStyle.italic,
-                      fontSize: 14)),
-                ],
+      body: CustomScrollView(
+        slivers: [
+          // SliverAppBar with red gradient
+          SliverAppBar(
+            expandedHeight: 180,
+            pinned: true,
+            backgroundColor: AppColors.primary,
+            flexibleSpace: FlexibleSpaceBar(
+              background: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [AppColors.primaryDark, AppColors.primary],
+                  ),
+                ),
+                padding: const EdgeInsets.fromLTRB(20, 60, 20, 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Text(
+                      'Hello, ${user?.name.split(' ').first ?? 'there'}! 👋',
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${_capitalize(user?.role ?? '')} · Mahindra University',
+                      style: const TextStyle(
+                          color: Colors.white70, fontSize: 14),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-        ),
 
-        SliverToBoxAdapter(child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+          SliverPadding(
+            padding: const EdgeInsets.all(16),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate([
+                // Quick access cards
+                const Text('Quick Access',
+                    style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary)),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _QuickCard(
+                        icon: Icons.business,
+                        label: 'ERP Portal',
+                        color: AppColors.erp,
+                        onTap: () => context.push('/erp'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _QuickCard(
+                        icon: Icons.language,
+                        label: 'MU Website',
+                        color: AppColors.moodle,
+                        onTap: () => context.push('/website'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _QuickCard(
+                        icon: Icons.notifications,
+                        label: 'Notices',
+                        color: AppColors.primary,
+                        onTap: () => context.go('/notices'),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
 
-              // ── QUICK ACCESS ──
-              const Text('Quick Access',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold)),
-              const SizedBox(height: 16),
-              Row(children: [
-                _Card('📊', 'ERP\nPortal',
-                  AppColors.primary,
-                  () => ctx.push('/erp')),
-                const SizedBox(width: 14),
-                _Card('🌐', 'MU\nWebsite',
-                  AppColors.moodle,
-                  () => ctx.push('/moodle')),
-                const SizedBox(width: 14),
-                _Card('📢', 'Notice\nBoard',
-                  const Color(0xFF1D4ED8),
-                  () => ctx.go('/notices')),
+                // Recent notices
+                const Text('Recent Notices',
+                    style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary)),
+                const SizedBox(height: 12),
+
+                if (notices.isLoading)
+                  const Center(child: CircularProgressIndicator())
+                else if (notices.error != null)
+                  Text(notices.error!,
+                      style: const TextStyle(color: AppColors.error))
+                else if (notices.notices.isEmpty)
+                  const Text('No notices yet.',
+                      style: TextStyle(color: AppColors.textSecondary))
+                else
+                  ...notices.notices.take(3).map((n) => _NoticePreviewCard(notice: n)),
               ]),
-
-              const SizedBox(height: 32),
-
-              // ── RECENT NOTICES ──
-              const Text('Recent Notices',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold)),
-              const SizedBox(height: 14),
-
-              if (notices.isLoading)
-                const Center(child: CircularProgressIndicator(
-                  color: AppColors.primary))
-              else if (notices.notices.isEmpty)
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.border)),
-                  child: const Center(
-                    child: Text('No notices yet.',
-                      style: TextStyle(
-                        color: AppColors.textSecondary))))
-              else
-                ...notices.notices.take(3).map((n) =>
-                  _NoticeRow(n.title, n.category, n.author)),
-
-              const SizedBox(height: 20),
-            ],
+            ),
           ),
-        )),
-      ]),
+        ],
+      ),
+    );
+  }
+
+  String _capitalize(String s) =>
+      s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
+}
+
+class _QuickCard extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _QuickCard({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.border),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            )
+          ],
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 28),
+            const SizedBox(height: 8),
+            Text(label,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary)),
+          ],
+        ),
+      ),
     );
   }
 }
 
-class _Card extends StatelessWidget {
-  final String emoji, label;
-  final Color color;
-  final VoidCallback onTap;
-  const _Card(this.emoji, this.label, this.color, this.onTap);
+class _NoticePreviewCard extends StatelessWidget {
+  final NoticeModel notice;
+  const _NoticePreviewCard({required this.notice});
+
+  Color get _categoryColor {
+    switch (notice.category) {
+      case 'urgent': return AppColors.urgent;
+      case 'academic': return AppColors.academic;
+      case 'event': return AppColors.event;
+      default: return AppColors.general;
+    }
+  }
 
   @override
-  Widget build(BuildContext _) =>
-    Expanded(child: GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          vertical: 20, horizontal: 12),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: color.withOpacity(0.25),
-            width: 1.5)),
-        child: Column(children: [
-          Text(emoji,
-            style: const TextStyle(fontSize: 32)),
-          const SizedBox(height: 10),
-          Text(label,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: color,
-              height: 1.3)),
-        ]),
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(10),
+        border: Border(left: BorderSide(color: _categoryColor, width: 4)),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 6,
+              offset: const Offset(0, 2))
+        ],
       ),
-    ));
-}
-
-class _NoticeRow extends StatelessWidget {
-  final String title, category, author;
-  const _NoticeRow(this.title, this.category, this.author);
-
-  @override
-  Widget build(BuildContext _) => Container(
-    margin: const EdgeInsets.only(bottom: 12),
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: AppColors.surface,
-      borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: AppColors.border),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withOpacity(0.03),
-          blurRadius: 8,
-          offset: const Offset(0, 2))
-      ]),
-    child: Row(children: [
-      Expanded(child: Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title,
-            style: const TextStyle(
-              fontWeight: FontWeight.w700,
-              fontSize: 15),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis),
+          Text(notice.title,
+              style: const TextStyle(
+                  fontWeight: FontWeight.bold, fontSize: 14,
+                  color: AppColors.textPrimary),
+              maxLines: 1, overflow: TextOverflow.ellipsis),
           const SizedBox(height: 4),
-          Text('$category • $author',
-            style: const TextStyle(
-              fontSize: 12,
-              color: AppColors.textSecondary)),
-        ])),
-      const SizedBox(width: 8),
-      const Icon(Icons.chevron_right,
-        color: AppColors.textSecondary, size: 20),
-    ]),
-  );
+          Text(notice.body,
+              style: const TextStyle(
+                  fontSize: 13, color: AppColors.textSecondary),
+              maxLines: 2, overflow: TextOverflow.ellipsis),
+          const SizedBox(height: 6),
+          Text('By ${notice.author}',
+              style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+        ],
+      ),
+    );
+  }
 }

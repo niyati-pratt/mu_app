@@ -1,224 +1,280 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../core/constants/colors.dart';
+import '../../core/constants/app_colors.dart';
+import '../../models/notice_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/notices_provider.dart';
-import '../../models/notice_model.dart';
 
 class NoticesScreen extends StatefulWidget {
   const NoticesScreen({super.key});
+
   @override
-  State<NoticesScreen> createState() => _State();
+  State<NoticesScreen> createState() => _NoticesScreenState();
 }
 
-class _State extends State<NoticesScreen> {
+class _NoticesScreenState extends State<NoticesScreen> {
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final u = context.read<AuthProvider>().currentUser;
-      context.read<NoticesProvider>()
-        .fetch(studentClass: u?.studentClass);
+      final auth = context.read<AuthProvider>();
+      context.read<NoticesProvider>().fetch(
+        studentClass: auth.currentUser?.studentClass,
+      );
     });
   }
 
-  Color _color(String c) {
-    switch (c) {
-      case 'urgent':   return AppColors.urgent;
-      case 'academic': return AppColors.academic;
-      case 'event':    return AppColors.event;
-      default:         return AppColors.general;
-    }
+  void _showPostDialog(BuildContext context) {
+    final titleController = TextEditingController();
+    final bodyController = TextEditingController();
+    String selectedCategory = 'general';
+    String? selectedClass;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(builder: (ctx, setModalState) {
+          return Padding(
+            padding: EdgeInsets.only(
+              left: 20, right: 20, top: 20,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text('Post Notice',
+                    style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary)),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: titleController,
+                  decoration: const InputDecoration(
+                    labelText: 'Title',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: bodyController,
+                  maxLines: 4,
+                  decoration: const InputDecoration(
+                    labelText: 'Body',
+                    border: OutlineInputBorder(),
+                    alignLabelWithHint: true,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: selectedCategory,
+                  decoration: const InputDecoration(
+                    labelText: 'Category',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: ['general', 'urgent', 'academic', 'event']
+                      .map((c) => DropdownMenuItem(
+                          value: c,
+                          child: Text(c[0].toUpperCase() + c.substring(1))))
+                      .toList(),
+                  onChanged: (v) =>
+                      setModalState(() => selectedCategory = v ?? 'general'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  decoration: const InputDecoration(
+                    labelText: 'Target class (leave blank for all)',
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (v) => selectedClass = v.trim().isEmpty ? null : v.trim(),
+                ),
+                const SizedBox(height: 20),
+                FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  onPressed: () async {
+                    final auth = context.read<AuthProvider>();
+                    final noticesProvider = context.read<NoticesProvider>();
+                    final notice = NoticeModel(
+                      id: '',
+                      title: titleController.text,
+                      body: bodyController.text,
+                      category: selectedCategory,
+                      author: auth.currentUser?.name ?? 'Faculty',
+                      targetClass: selectedClass,
+                    );
+                    await noticesProvider.post(notice);
+                    if (ctx.mounted) Navigator.pop(ctx);
+                    await noticesProvider.fetch(
+                      studentClass: auth.currentUser?.studentClass,
+                    );
+                  },
+                  child: const Text('Publish',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                ),
+              ],
+            ),
+          );
+        });
+      },
+    );
   }
 
   @override
-  Widget build(BuildContext ctx) {
-    final p    = ctx.watch<NoticesProvider>();
-    final role = ctx.watch<AuthProvider>().role;
+  Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    final notices = context.watch<NoticesProvider>();
+    final isFaculty = auth.role == 'faculty' || auth.role == 'admin';
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: AppColors.primary,
-        title: const Text('Notices', style: TextStyle(
-          color: Colors.white, fontWeight: FontWeight.bold)),
+        title: const Text('Notices', style: TextStyle(color: Colors.white)),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh, color: Colors.white),
-            onPressed: () {
-              final u = ctx.read<AuthProvider>().currentUser;
-              ctx.read<NoticesProvider>()
-                .fetch(studentClass: u?.studentClass);
-            }),
+            onPressed: () => notices.fetch(
+              studentClass: auth.currentUser?.studentClass,
+            ),
+          )
         ],
       ),
-      floatingActionButton:
-        (role == 'faculty' || role == 'admin')
-          ? FloatingActionButton.extended(
+      floatingActionButton: isFaculty
+          ? FloatingActionButton(
               backgroundColor: AppColors.primary,
-              icon: const Icon(Icons.add, color: Colors.white),
-              label: const Text('Post Notice',
-                style: TextStyle(color: Colors.white,
-                  fontWeight: FontWeight.bold)),
-              onPressed: () => _showPost(ctx))
+              child: const Icon(Icons.add, color: Colors.white),
+              onPressed: () => _showPostDialog(context),
+            )
           : null,
-      body: p.isLoading
-        ? const Center(child: CircularProgressIndicator(
-            color: AppColors.primary))
-        : p.notices.isEmpty
-          ? const Center(child: Text('No notices yet.'))
-          : RefreshIndicator(
-              color: AppColors.primary,
-              onRefresh: () async {
-                final u = ctx.read<AuthProvider>().currentUser;
-                await ctx.read<NoticesProvider>()
-                  .fetch(studentClass: u?.studentClass);
-              },
-              child: ListView.separated(
-                padding: const EdgeInsets.all(16),
-                itemCount: p.notices.length,
-                separatorBuilder: (_, __) =>
-                  const SizedBox(height: 10),
-                itemBuilder: (_, i) {
-                  final n = p.notices[i];
-                  final c = _color(n.category);
-                  return Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(14),
-                      boxShadow: [BoxShadow(
-                        color: Colors.black.withOpacity(0.04),
-                        blurRadius: 8)]),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(14),
-                      child: IntrinsicHeight(child: Row(
-                        crossAxisAlignment:
-                          CrossAxisAlignment.stretch,
-                        children: [
-                          Container(width: 4, color: c),
-                          Expanded(child: Padding(
-                            padding: const EdgeInsets.all(14),
-                            child: Column(
-                              crossAxisAlignment:
-                                CrossAxisAlignment.start,
-                              children: [
-                                Row(children: [
-                                  Container(
-                                    padding: const EdgeInsets
-                                      .symmetric(
-                                        horizontal: 8,
-                                        vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: c.withOpacity(0.1),
-                                      borderRadius:
-                                        BorderRadius.circular(6)),
-                                    child: Text(
-                                      n.category.toUpperCase(),
-                                      style: TextStyle(
-                                        fontSize: 10, color: c,
-                                        fontWeight:
-                                          FontWeight.bold))),
-                                  const Spacer(),
-                                  Text(
-                                    '${DateTime.now().difference(n.createdAt).inHours}h ago',
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      color: AppColors.textSecondary)),
-                                ]),
-                                const SizedBox(height: 6),
-                                Text(n.title,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 15)),
-                                const SizedBox(height: 4),
-                                Text(n.body,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: AppColors.textSecondary,
-                                    fontSize: 13)),
-                                const SizedBox(height: 8),
-                                Text('Posted by ${n.author}',
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: AppColors.textSecondary)),
-                              ],
-                            ),
-                          )),
-                        ],
-                      )),
+      body: notices.isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : notices.error != null
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.error_outline,
+                          size: 48, color: AppColors.error),
+                      const SizedBox(height: 12),
+                      Text(notices.error!,
+                          style: const TextStyle(color: AppColors.error)),
+                    ],
+                  ),
+                )
+              : notices.notices.isEmpty
+                  ? const Center(
+                      child: Text('No notices yet.',
+                          style: TextStyle(color: AppColors.textSecondary)))
+                  : RefreshIndicator(
+                      color: AppColors.primary,
+                      onRefresh: () => notices.fetch(
+                        studentClass: auth.currentUser?.studentClass,
+                      ),
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: notices.notices.length,
+                        itemBuilder: (ctx, i) =>
+                            _NoticeCard(notice: notices.notices[i]),
+                      ),
                     ),
-                  );
-                },
-              ),
-            ),
     );
   }
+}
 
-  void _showPost(BuildContext ctx) {
-    final titleCtrl = TextEditingController();
-    final bodyCtrl  = TextEditingController();
-    String cat = 'general';
-    showModalBottomSheet(
-      context: ctx, isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(20))),
-      builder: (_) => StatefulBuilder(
-        builder: (ctx2, ss) => Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(ctx2).viewInsets.bottom,
-            left: 20, right: 20, top: 24),
-          child: Column(mainAxisSize: MainAxisSize.min,
+class _NoticeCard extends StatelessWidget {
+  final NoticeModel notice;
+  const _NoticeCard({required this.notice});
+
+  Color get _categoryColor {
+    switch (notice.category) {
+      case 'urgent': return AppColors.urgent;
+      case 'academic': return AppColors.academic;
+      case 'event': return AppColors.event;
+      default: return AppColors.general;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border(left: BorderSide(color: _categoryColor, width: 4)),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2))
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              const Text('Post a Notice',
-                style: TextStyle(fontSize: 20,
-                  fontWeight: FontWeight.bold)),
-              const SizedBox(height: 16),
-              TextField(controller: titleCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Title',
-                  border: OutlineInputBorder())),
-              const SizedBox(height: 12),
-              TextField(controller: bodyCtrl, maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'Message',
-                  border: OutlineInputBorder())),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: cat,
-                decoration: const InputDecoration(
-                  labelText: 'Category',
-                  border: OutlineInputBorder()),
-                items: ['general','urgent','academic','event']
-                  .map((c) => DropdownMenuItem(
-                    value: c, child: Text(c))).toList(),
-                onChanged: (v) => ss(() => cat = v!)),
-              const SizedBox(height: 16),
-              SizedBox(width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 14)),
-                  onPressed: () async {
-                    final user = ctx
-                      .read<AuthProvider>().currentUser!;
-                    final n = NoticeModel(
-                      id: '', title: titleCtrl.text,
-                      body: bodyCtrl.text, category: cat,
-                      author: user.name,
-                      createdAt: DateTime.now());
-                    await ctx.read<NoticesProvider>().post(n);
-                    if (ctx.mounted) Navigator.pop(ctx);
-                  },
-                  child: const Text('Publish',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold)))),
-              const SizedBox(height: 24),
-            ]),
-        ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: _categoryColor.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  notice.category.toUpperCase(),
+                  style: TextStyle(
+                      color: _categoryColor,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold),
+                ),
+              ),
+              if (notice.isPinned) ...[
+                const SizedBox(width: 8),
+                const Icon(Icons.push_pin, size: 14, color: AppColors.primary),
+              ]
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(notice.title,
+              style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: AppColors.textPrimary)),
+          const SizedBox(height: 6),
+          Text(notice.body,
+              style: const TextStyle(
+                  fontSize: 14, color: AppColors.textSecondary)),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              const Icon(Icons.person_outline,
+                  size: 14, color: AppColors.textSecondary),
+              const SizedBox(width: 4),
+              Text(notice.author,
+                  style: const TextStyle(
+                      fontSize: 12, color: AppColors.textSecondary)),
+              if (notice.targetClass != null) ...[
+                const SizedBox(width: 12),
+                const Icon(Icons.class_outlined,
+                    size: 14, color: AppColors.textSecondary),
+                const SizedBox(width: 4),
+                Text(notice.targetClass!,
+                    style: const TextStyle(
+                        fontSize: 12, color: AppColors.textSecondary)),
+              ],
+            ],
+          ),
+        ],
       ),
     );
   }

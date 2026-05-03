@@ -1,26 +1,43 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class UserModel {
-  final String uid, name, email, role;
-  final String? department, studentClass;
+  final String uid;
+  final String name;
+  final String email;
+  final String role; // 'student' | 'faculty' | 'parent' | 'admin'
+  final String? department;
+  final String? studentClass;
+  final Timestamp? createdAt;
 
   UserModel({
-    required this.uid, required this.name,
-    required this.email, required this.role,
-    this.department, this.studentClass,
+    required this.uid,
+    required this.name,
+    required this.email,
+    required this.role,
+    this.department,
+    this.studentClass,
+    this.createdAt,
   });
 
-  factory UserModel.fromFirestore(
-      Map<String, dynamic> d, String uid) =>
-    UserModel(
-      uid: uid, name: d['name'] ?? '',
-      email: d['email'] ?? '',
-      role: d['role'] ?? 'student',
-      department: d['department'],
-      studentClass: d['studentClass'],
+  factory UserModel.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return UserModel(
+      uid: doc.id,
+      name: data['name'] ?? '',
+      email: data['email'] ?? '',
+      role: data['role'] ?? 'student',
+      department: data['department'],
+      studentClass: data['studentClass'],
+      createdAt: data['createdAt'],
     );
+  }
 
   Map<String, dynamic> toFirestore() => {
-    'name': name, 'email': email,
-    'role': role, 'department': department,
-    'studentClass': studentClass,
+    'name': name,
+    'email': email,
+    'role': role,
+    if (department != null) 'department': department,
+    if (studentClass != null) 'studentClass': studentClass,
+    'createdAt': FieldValue.serverTimestamp(),
   };
 }

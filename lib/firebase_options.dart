@@ -4,60 +4,35 @@ import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
 
-/// Default [FirebaseOptions] for use with your Firebase apps.
-///
-/// Example:
-/// ```dart
-/// import 'firebase_options.dart';
-/// // ...
-/// await Firebase.initializeApp(
-///   options: DefaultFirebaseOptions.currentPlatform,
-/// );
-/// ```
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      throw UnsupportedError(
-        'DefaultFirebaseOptions have not been configured for web - '
-        'you can reconfigure this by running the FlutterFire CLI again.',
-      );
+      throw UnsupportedError('DefaultFirebaseOptions have not been configured for web.');
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
         return android;
       case TargetPlatform.iOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for ios - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
-      case TargetPlatform.macOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for macos - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
-      case TargetPlatform.windows:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for windows - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
-      case TargetPlatform.linux:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for linux - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return ios;
       default:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions are not supported for this platform.',
-        );
+        throw UnsupportedError('DefaultFirebaseOptions are not supported for this platform.');
     }
   }
 
-  static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyAA42FfmaEfhz8I99_IiQ4ZyYnki3lyf-c',
-    appId: '1:104209215812:android:ced10481926e408c80a711',
-    messagingSenderId: '104209215812',
-    projectId: 'mahindra-university-app',
-    storageBucket: 'mahindra-university-app.firebasestorage.app',
+    static const FirebaseOptions android = FirebaseOptions(
+    apiKey: 'AIzaSyCmGyTGVQ7fl2kP0bbOTRzOcywMmwBI800',
+    appId: '1:783513830794:android:a01260ab5e5339d74fb473',
+    messagingSenderId: '783513830794',
+    projectId: 'mu-app-aa184',
+    storageBucket: 'mu-app-aa184.firebasestorage.app',
   );
 
+  static const FirebaseOptions ios = FirebaseOptions(
+    apiKey: 'AIzaSyB7v31LHm0vUET1g2q83xj7ib4puSFS5YA',
+    appId: '1:783513830794:ios:9fc1f02b3caf58b34fb473',
+    messagingSenderId: '783513830794',
+    projectId: 'mu-app-aa184',
+    storageBucket: 'mu-app-aa184.firebasestorage.app',
+    iosBundleId: 'com.niyati.muapp2026',
+  );
 }
